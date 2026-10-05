@@ -1,0 +1,316 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Тамагочи">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#2bb5a0">
+<style>:root{color-scheme:light dark;padding:env(safe-area-inset-top,0px) 0 env(safe-area-inset-bottom,0px)}body{margin:0;font-size:14px}[hidden]{display:none!important}</style>
+<title>Тамагочи</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;600&display=swap">
+<style>
+/* Layout: one centered handheld device; LCD on top, meters, then four action buttons. */
+:root{
+  --page:#e8edf2; --ink:#1c2733; --muted:#5b6b7a;
+  --shell:#2bb5a0; --shell-edge:#1d8f7e; --btn:#fff6d8; --btn-ink:#14463f;
+  --lcd:#c6d4a4; --lcd-dark:#3b4630; --lcd-night:#8c9c78; --lcd-ink:#262e1d;
+  --bar-on:#fff6d8; --bar-off:#1d8f7e; --warn:#ff7a59;
+  --font-display:"Pixelify Sans",ui-monospace,Menlo,monospace; --font-body:system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --page:#0f1620; --ink:#e6edf3; --muted:#8fa0b0; --shell:#1f8f7f; --shell-edge:#156559; --btn:#f3e9c4; --btn-ink:#0f3b35; --bar-off:#156559; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --page:#0f1620; --ink:#e6edf3; --muted:#8fa0b0; --shell:#1f8f7f; --shell-edge:#156559; --btn:#f3e9c4; --btn-ink:#0f3b35; --bar-off:#156559; color-scheme:dark}
+html,body{height:100%}
+body{background:var(--page);color:var(--ink);font-family:var(--font-body);padding-inline:16px;padding-block:20px;display:flex;justify-content:center;align-items:flex-start;-webkit-tap-highlight-color:transparent;touch-action:manipulation;-webkit-user-select:none;user-select:none}
+main{width:100%;max-width:380px;display:flex;flex-direction:column;gap:14px;min-width:0}
+header{display:flex;justify-content:space-between;align-items:baseline;gap:12px}
+#name{font:600 22px var(--font-display);background:transparent;color:var(--ink);border:0;border-bottom:2px dashed var(--muted);width:9em;max-width:60%;padding:2px 0;border-radius:0;-webkit-user-select:text;user-select:text}
+#name:focus-visible{outline:2px solid var(--shell);outline-offset:3px}
+#age{font:400 14px var(--font-display);color:var(--muted);text-align:right}
+.device{background:var(--shell);border:3px solid var(--shell-edge);border-radius:46% 46% 40% 40% / 30% 30% 22% 22%;padding:34px 26px 28px;display:flex;flex-direction:column;gap:14px;box-shadow:0 10px 0 var(--shell-edge)}
+.lcd{background:var(--lcd);border:6px solid var(--lcd-dark);border-radius:14px;padding:6px;transition:background .4s}
+.lcd.night{background:var(--lcd-night)}
+canvas{display:block;width:100%;aspect-ratio:1;image-rendering:pixelated;image-rendering:crisp-edges;cursor:pointer}
+#msg{font:400 15px/1.2 var(--font-display);color:var(--lcd-ink);text-align:center;min-height:1.3em;padding:2px 0 0}
+.meters{display:grid;grid-template-columns:auto 1fr;gap:6px 10px;align-items:center;font:400 13px var(--font-display);color:var(--btn)}
+.bar{display:grid;grid-template-columns:repeat(10,1fr);gap:2px}
+.bar i{height:9px;background:var(--bar-off);border-radius:1px}
+.bar i.on{background:var(--bar-on)}
+.bar.low i.on{background:var(--warn)}
+.actions{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+button{font:600 17px var(--font-display);background:var(--btn);color:var(--btn-ink);border:0;border-radius:999px;padding:13px 8px;box-shadow:0 4px 0 var(--shell-edge);cursor:pointer;min-height:48px}
+button:active{transform:translateY(3px);box-shadow:0 1px 0 var(--shell-edge)}
+button:focus-visible{outline:3px solid var(--ink);outline-offset:2px}
+button:disabled{opacity:.55}
+.foot{display:flex;justify-content:center;flex-wrap:wrap;gap:4px 16px}
+.link{background:none;box-shadow:none;color:var(--muted);font:400 14px var(--font-display);text-decoration:underline;min-height:0;padding:8px}
+.link:active{transform:none}
+.hint{font-size:13px;color:var(--muted);text-align:center;line-height:1.4;text-wrap:balance}
+@media (prefers-reduced-motion:reduce){.lcd{transition:none}}
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <input id="name" maxlength="12" value="Пушок" aria-label="Имя питомца" autocomplete="off">
+    <div id="age">возраст: 0 мин</div>
+  </header>
+
+  <section class="device">
+    <div class="lcd" id="lcd">
+      <canvas id="cv" width="192" height="192" aria-label="Экран питомца"></canvas>
+      <div id="msg">…</div>
+    </div>
+    <div class="meters" id="meters"></div>
+    <div class="actions">
+      <button id="bFeed" type="button">Кормить</button>
+      <button id="bPlay" type="button">Играть</button>
+      <button id="bSleep" type="button">Спать</button>
+      <button id="bClean" type="button">Мыть</button>
+    </div>
+  </section>
+
+  <p class="hint" id="hint">Тапни по питомцу, чтобы погладить. Показатели падают, даже когда приложение закрыто.</p>
+  <div class="foot"><button class="link" id="bMute" type="button">Звук: вкл</button><button class="link" id="bReset" type="button">Начать заново</button></div>
+</main>
+
+<script>
+(function(){
+var KEY='tamago-v1', G=16, C=12;
+var cv=document.getElementById('cv'), ctx=cv.getContext('2d');
+var lcd=document.getElementById('lcd'), msgEl=document.getElementById('msg');
+var INK='#262e1d', INK_DIM='#6b7a55';
+var STATS=[['hunger','Сытость'],['fun','Радость'],['energy','Энергия'],['clean','Чистота'],['health','Здоровье']];
+
+function fresh(){var n=Date.now();return {name:'Пушок',born:n,last:n,hunger:80,fun:80,energy:80,clean:90,health:100,sleeping:false,alive:true,diedAt:0};}
+function load(){try{var r=localStorage.getItem(KEY);if(r){var o=JSON.parse(r);if(o&&typeof o.born==='number')return o;}}catch(e){}return fresh();}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(s));}catch(e){}}
+var muted=false;try{muted=localStorage.getItem('tamago-mute')==='1';}catch(e){}
+var AC=null;
+function audio(){
+  try{
+    if(!AC){var K=window.AudioContext||window.webkitAudioContext;if(!K)return null;AC=new K();}
+    if(AC.state==='suspended')AC.resume();
+    return AC;
+  }catch(e){return null;}
+}
+function tone(f,d,at,type,vol){
+  var a=audio();if(!a||muted)return;
+  var t=a.currentTime+(at||0), o=a.createOscillator(), g=a.createGain();
+  o.type=type||'square';o.frequency.setValueAtTime(f,t);
+  g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(vol||0.07,t+0.01);g.gain.exponentialRampToValueAtTime(0.0001,t+d);
+  o.connect(g);g.connect(a.destination);o.start(t);o.stop(t+d+0.02);
+}
+function seq(list,step,d){list.forEach(function(f,i){tone(f,d||0.1,i*(step||0.1));});}
+var SND={
+  feed:function(){seq([392,523,392,523],0.12,0.09);},
+  play:function(){seq([523,659,784,1047,784,1047],0.09,0.08);},
+  sleep:function(){seq([659,523,392,330],0.18,0.16);},
+  wake:function(){seq([330,392,523,659],0.12,0.1);},
+  wash:function(){for(var i=0;i<8;i++)tone(900+(i%3)*250,0.05,i*0.06,'triangle',0.05);},
+  love:function(){seq([784,988,1175],0.1,0.1);},
+  no:function(){tone(180,0.2,0,'sawtooth',0.06);},
+  hatch:function(){seq([523,659,784,1047,784,1047,1319],0.11,0.1);},
+  die:function(){seq([392,370,349,330,294,262],0.22,0.2);},
+  ask:function(){seq([880,880],0.18,0.07);}
+};
+function snd(n){try{SND[n]();}catch(e){}}
+
+var s=load(), anim=null, frame=0, lastStage=null, lastAlive=null, lastAsk=0, note='', noteUntil=0, resetArm=0;
+
+function clamp(v){return Math.max(0,Math.min(100,v));}
+function ageMin(now){return ((s.alive?now:s.diedAt||now)-s.born)/60000;}
+function stage(now){var a=ageMin(now);return a<1?'egg':a<360?'baby':a<1440?'kid':'adult';}
+
+function tick(now){
+  var dt=Math.min((now-s.last)/60000,360); s.last=now;
+  if(!s.alive||dt<=0||stage(now)==='egg')return;
+  var sl=s.sleeping;
+  s.hunger=clamp(s.hunger-dt*(sl?0.25:0.5));
+  s.fun=clamp(s.fun-dt*(sl?0.1:0.4));
+  s.clean=clamp(s.clean-dt*0.3);
+  s.energy=clamp(s.energy+dt*(sl?1.2:-0.2));
+  if(sl&&s.energy>=100){s.sleeping=false;}
+  var zeros=0;['hunger','fun','clean','energy'].forEach(function(k){if(s[k]<=0)zeros++;});
+  if(zeros)s.health=clamp(s.health-dt*0.1*zeros);
+  else if(s.hunger>30&&s.fun>30&&s.clean>30&&s.energy>20)s.health=clamp(s.health+dt*0.15);
+  if(s.health<=0){s.alive=false;s.diedAt=now;s.sleeping=false;}
+}
+
+function mood(){
+  if(!s.alive)return 'dead';
+  if(s.sleeping)return 'sleep';
+  var m=Math.min(s.hunger,s.fun,s.energy,s.clean);
+  if(m<25||s.health<40)return 'sad';
+  return (s.hunger+s.fun+s.energy+s.clean)/4>70?'happy':'ok';
+}
+function status(now){
+  if(note&&now<noteUntil)return note;
+  var st=stage(now);
+  if(st==='egg')return 'Яйцо скоро вылупится…';
+  if(!s.alive)return s.name+' ушёл на радугу';
+  if(s.sleeping)return 'Zzz… спит';
+  var low=null,lv=40;
+  [['hunger','Я голоден'],['fun','Мне скучно'],['energy','Хочу спать'],['clean','Тут грязно']].forEach(function(p){if(s[p[0]]<lv){lv=s[p[0]];low=p[1];}});
+  if(low)return low;
+  return mood()==='happy'?'Всё отлично!':'Всё хорошо';
+}
+function say(t,ms){note=t;noteUntil=Date.now()+(ms||2200);}
+
+/* ---------- drawing ---------- */
+function px(x,y,w,h,col){ctx.fillStyle=col||INK;ctx.fillRect(Math.round(x)*C,Math.round(y)*C,(w||1)*C,(h||1)*C);}
+function blob(cx,cy,rx,ry,col){
+  for(var y=0;y<G;y++)for(var x=0;x<G;x++){
+    var dx=(x+0.5-cx)/rx, dy=(y+0.5-cy)/ry;
+    if(dx*dx+dy*dy<=1)px(x,y,1,1,col);
+  }
+}
+var BG='#c6d4a4';
+function draw(now){
+  var st=stage(now), md=mood(), sl=s.sleeping;
+  ctx.clearRect(0,0,cv.width,cv.height);
+  var bounce=(frame%2===1&&!sl&&s.alive)?-1:0;
+  var col=s.alive?INK:INK_DIM;
+  var a=anim&&now<anim.until?anim:null;
+  var t=a?(now-(a.until-a.dur))/a.dur:0;
+
+  if(st==='egg'){
+    var cx=8+(frame%2?0.5:-0.5);
+    blob(cx,9,3.6,4.6,INK);
+    [[0,-2],[1,-1],[0,0],[1,1],[0,2]].forEach(function(p){px(Math.round(cx)-1+p[0]+1,9+p[1],1,1,BG);});
+    return;
+  }
+
+  var P={baby:{rx:3.6,ry:3.3},kid:{rx:4.6,ry:4.2},adult:{rx:5.6,ry:5}}[st];
+  var cy=9.5+(st==='baby'?1:0)+bounce; if(!s.alive)cy=8;
+  blob(8,cy,P.rx,P.ry,col);
+  var top=Math.floor(cy-P.ry);
+  if(st!=='baby'){var ex1=Math.floor(8-P.rx)+1, ex2=Math.ceil(8+P.rx)-2, eh=st==='adult'?3:2;
+    px(ex1,top-eh+1,1,eh,col);px(ex2,top-eh+1,1,eh,col);}
+  if(st==='adult'){px(Math.ceil(8+P.rx)-1,Math.round(cy+1),2,1,col);} // tail
+
+  var ey=Math.round(cy-1.5);
+  if(!s.alive){
+    [5,9].forEach(function(x){px(x,ey,1,1,BG);px(x+2,ey,1,1,BG);px(x+1,ey+1,1,1,BG);px(x,ey+2,1,1,BG);px(x+2,ey+2,1,1,BG);});
+  }else if(sl){
+    px(5,ey+1,2,1,BG);px(9,ey+1,2,1,BG);
+  }else{
+    px(6,ey,1,2,BG);px(9,ey,1,2,BG);
+    if(md==='sad'){px(6,ey+2,1,1,BG);}
+    if(md==='happy'){px(6,ey-1,1,1,BG);px(9,ey-1,1,1,BG);}
+  }
+  var my=Math.round(cy+2);
+  if(a&&a.type==='eat'){px(7,my,2,2,BG);}
+  else if(!s.alive||sl||md==='ok'){px(7,my+1,2,1,BG);}
+  else if(md==='happy'){px(6,my,1,1,BG);px(9,my,1,1,BG);px(7,my+1,2,1,BG);}
+  else{px(7,my,2,1,BG);px(6,my+1,1,1,BG);px(9,my+1,1,1,BG);}
+
+  // dirt
+  if(s.alive&&s.clean<40){px(3,11,1,1);px(2,12,3,1);px(1,13,5,1);}
+  if(s.alive&&s.clean<20){px(12,12,1,1);px(11,13,3,1);px(10,14,5,1);}
+
+  // sleep z
+  if(sl&&s.alive){var zo=frame%2;px(12,3+zo,3,1);px(14,4+zo,1,1);px(13,5+zo,1,1);px(12,6+zo,3,1);}
+
+  // animations
+  if(a&&a.type==='eat'){var ax=Math.round(15-t*7);px(ax,7,3,1);px(ax-1,8,5,2);px(ax,10,3,1);px(ax+1,6,1,1);}
+  if(a&&a.type==='play'){var by=Math.abs(Math.sin(t*Math.PI*4))*5;px(12,Math.round(12-by),2,2);}
+  if(a&&a.type==='love'){var hy=Math.round(5-t*3);[[13,0],[1,2]].forEach(function(h){px(h[0],hy+h[1]+1,3,1);px(h[0]+1,hy+h[1]+2,1,1);px(h[0],hy+h[1],1,1);px(h[0]+2,hy+h[1],1,1);});}
+  if(a&&a.type==='wash'){for(var i=0;i<9;i++){var bx=(i*5+Math.floor(t*30))%15, byy=(i*7+Math.floor(t*20))%14;px(bx,byy,1,1);if(i%3===0)px(bx+1,byy+1,1,1);}}
+}
+
+/* ---------- UI ---------- */
+var mEl=document.getElementById('meters'), bars={};
+STATS.forEach(function(p){
+  var l=document.createElement('div');l.textContent=p[1];
+  var b=document.createElement('div');b.className='bar';
+  for(var i=0;i<10;i++)b.appendChild(document.createElement('i'));
+  mEl.appendChild(l);mEl.appendChild(b);bars[p[0]]=b;
+});
+var $=function(id){return document.getElementById(id);};
+var nameEl=$('name'), ageEl=$('age');
+nameEl.value=s.name;
+
+function fmtAge(m){
+  m=Math.floor(m);
+  if(m<60)return m+' мин';
+  var h=Math.floor(m/60);
+  if(h<48)return h+' ч';
+  return Math.floor(h/24)+' дн';
+}
+function render(){
+  var now=Date.now();
+  tick(now);
+  STATS.forEach(function(p){
+    var v=s[p[0]], n=Math.round(v/10), kids=bars[p[0]].children;
+    for(var i=0;i<10;i++)kids[i].className=i<n?'on':'';
+    bars[p[0]].className='bar'+(v<25?' low':'');
+  });
+  ageEl.textContent='возраст: '+fmtAge(ageMin(now));
+  msgEl.textContent=status(now);
+  lcd.className='lcd'+(s.sleeping&&s.alive?' night':'');
+  BG=s.sleeping&&s.alive?'#8c9c78':'#c6d4a4';
+  var egg=stage(now)==='egg', dead=!s.alive;
+  var cs=stage(now);
+  if(lastStage==='egg'&&cs!=='egg')snd('hatch');
+  if(lastAlive===true&&!s.alive)snd('die');
+  lastStage=cs;lastAlive=s.alive;
+  if(s.alive&&!egg&&!s.sleeping&&Math.min(s.hunger,s.fun,s.clean)<25&&now-lastAsk>45000){lastAsk=now;snd('ask');}
+  ['bFeed','bPlay','bSleep','bClean'].forEach(function(id){$(id).disabled=egg||dead;});
+  $('bSleep').textContent=s.sleeping?'Будить':'Спать';
+  $('bReset').textContent=resetArm>now?'Точно? Нажми ещё раз':(dead?'Завести нового питомца':'Начать заново');
+  draw(now);
+  save();
+}
+function go(type,dur){anim={type:type,dur:dur,until:Date.now()+dur};}
+function guard(){var now=Date.now();tick(now);return s.alive&&stage(now)!=='egg';}
+
+$('bFeed').onclick=function(){
+  if(!guard())return;
+  if(s.sleeping){say('Он спит');snd('no');return render();}
+  if(s.hunger>92){say('Не хочет есть');snd('no');return render();}
+  snd('feed');s.hunger=clamp(s.hunger+30);s.clean=clamp(s.clean-4);go('eat',1600);say('Ням-ням!');render();
+};
+$('bPlay').onclick=function(){
+  if(!guard())return;
+  if(s.sleeping){say('Он спит');snd('no');return render();}
+  if(s.energy<15){say('Слишком устал');snd('no');return render();}
+  snd('play');s.fun=clamp(s.fun+25);s.energy=clamp(s.energy-10);s.hunger=clamp(s.hunger-5);go('play',1800);say('Ура, мячик!');render();
+};
+$('bSleep').onclick=function(){
+  if(!guard())return;
+  s.sleeping=!s.sleeping;snd(s.sleeping?'sleep':'wake');say(s.sleeping?'Спокойной ночи':'Доброе утро!');render();
+};
+$('bClean').onclick=function(){
+  if(!guard())return;
+  if(s.sleeping){s.sleeping=false;}
+  snd('wash');s.clean=100;go('wash',1500);say('Чистенький!');render();
+};
+cv.addEventListener('click',function(){
+  if(!guard())return;
+  if(s.sleeping){say('Тсс, он спит');snd('no');return render();}
+  snd('love');s.fun=clamp(s.fun+2);go('love',1200);say('Мурр');render();
+});
+function muteLabel(){$('bMute').textContent=muted?'Звук: выкл':'Звук: вкл';}
+muteLabel();
+$('bMute').onclick=function(){muted=!muted;try{localStorage.setItem('tamago-mute',muted?'1':'0');}catch(e){}muteLabel();if(!muted){audio();snd('love');}};
+nameEl.addEventListener('input',function(){s.name=nameEl.value.trim()||'Пушок';save();});
+$('bReset').onclick=function(){
+  var now=Date.now();
+  if(!s.alive||resetArm>now){var nm=s.name;s=fresh();s.name=nm;nameEl.value=nm;resetArm=0;anim=null;note='';}
+  else{resetArm=now+4000;}
+  render();
+};
+
+setInterval(function(){frame++;render();},700);
+document.addEventListener('visibilitychange',function(){if(!document.hidden)render();});
+render();
+})();
+</script>
+
+</body>
+</html>
